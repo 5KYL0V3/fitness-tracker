@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>健身训练记录器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <p class="eyebrow">手机端训练记录</p>
+      <h1>健身训练记录器</h1>
+    </header>
+
+    <section class="card" aria-labelledby="today-title">
+      <h2 id="today-title">📝 一、今日训练信息</h2>
+      <div class="form-grid">
+        <label>
+          日期
+          <input id="workoutDate" type="date">
+        </label>
+
+        <div class="field-block full">
+          <div class="field-label">训练部位</div>
+          <div class="tag-group" data-field="bodyParts"></div>
+        </div>
+
+        <div class="field-block full">
+          <div class="field-label">训练主目标</div>
+          <div class="tag-group" data-field="mainGoal"></div>
+        </div>
+
+        <div class="field-block full">
+          <div class="field-label">辅助目标</div>
+          <div class="tag-group" data-field="secondaryGoals"></div>
+        </div>
+
+        <div class="field-block full">
+          <div class="field-label">今日综合状态</div>
+          <div class="tag-group" data-field="dailyStatus"></div>
+        </div>
+
+        <details class="advanced-panel full">
+          <summary>更多状态</summary>
+          <div class="form-grid">
+            <div class="field-block full">
+              <div class="field-label">睡眠状态</div>
+              <div class="tag-group" data-field="sleepStatus"></div>
+            </div>
+
+            <div class="field-block full">
+              <div class="field-label">饮食状态</div>
+              <div class="tag-group" data-field="nutritionStatus"></div>
+            </div>
+
+            <div class="field-block full">
+              <div class="field-label">水分 / 出汗状态</div>
+              <div class="tag-group" data-field="hydrationStatus"></div>
+            </div>
+
+            <div class="field-block full">
+              <div class="field-label">咖啡因 / 补剂记录</div>
+              <div class="tag-group" data-field="supplements"></div>
+              <input id="supplementsOther" class="other-input hidden" type="text" placeholder="补充说明其他补剂" data-other-for="supplements">
+            </div>
+
+            <div class="field-block full">
+              <div class="field-label">练前恢复状态 / 肌肉酸痛</div>
+              <div class="tag-group" data-field="recoveryStatus"></div>
+            </div>
+
+            <div class="field-block full">
+              <div class="field-label">训练环境</div>
+              <div class="tag-group" data-field="trainingEnvironment"></div>
+            </div>
+          </div>
+        </details>
+
+        <label class="full">
+          今日备注
+          <textarea id="dailyNote" rows="3" placeholder="例如：睡眠、饮食、热身情况"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="pre-pain-title">
+      <h2 id="pre-pain-title">🩹 练前不适</h2>
+      <div class="form-grid">
+        <div class="field-block full">
+          <div class="field-label">练前不适部位</div>
+          <div class="tag-group" data-field="prePainParts"></div>
+          <input id="prePainOther" class="other-input hidden" type="text" placeholder="补充说明其他不适部位" data-other-for="prePainParts">
+        </div>
+
+        <div class="field-block full">
+          <div class="field-label">练前不适程度</div>
+          <p class="hint">0 = 无痛，1–3 = 轻微，4–6 = 中等，7–10 = 明显影响训练</p>
+          <div class="tag-group number-tags" data-field="prePainLevel"></div>
+        </div>
+
+        <label class="full">
+          练前不适备注
+          <textarea id="prePainNote" rows="2" placeholder="例如：左肩前侧热身前有轻微不适"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="exercise-title">
+      <h2 id="exercise-title">🏋️ 二、当前动作设置</h2>
+      <div class="form-grid">
+        <label>
+          常用动作
+          <select id="exerciseSelect">
+            <optgroup label="胸">
+              <option value="杠铃卧推">杠铃卧推</option>
+              <option value="哑铃卧推">哑铃卧推</option>
+              <option value="上斜杠铃卧推">上斜杠铃卧推</option>
+              <option value="上斜哑铃卧推">上斜哑铃卧推</option>
+              <option value="器械推胸">器械推胸</option>
+              <option value="史密斯卧推">史密斯卧推</option>
+              <option value="双杠臂屈伸">双杠臂屈伸</option>
+              <option value="绳索夹胸">绳索夹胸</option>
+              <option value="蝴蝶机夹胸">蝴蝶机夹胸</option>
+              <option value="俯卧撑">俯卧撑</option>
+            </optgroup>
+            <optgroup label="背">
+              <option value="高位下拉">高位下拉</option>
+              <option value="引体向上">引体向上</option>
+              <option value="坐姿划船">坐姿划船</option>
+              <option value="杠铃划船">杠铃划船</option>
+              <option value="哑铃划船">哑铃划船</option>
+              <option value="T 杠划船">T 杠划船</option>
+              <option value="直臂下压">直臂下压</option>
+              <option value="硬拉">硬拉</option>
+              <option value="器械划船">器械划船</option>
+            </optgroup>
+            <optgroup label="肩">
+              <option value="哑铃推肩">哑铃推肩</option>
+              <option value="杠铃推举">杠铃推举</option>
+              <option value="史密斯推肩">史密斯推肩</option>
+              <option value="侧平举">侧平举</option>
+              <option value="前平举">前平举</option>
+              <option value="反向飞鸟">反向飞鸟</option>
+              <option value="面拉">面拉</option>
+              <option value="阿诺德推举">阿诺德推举</option>
+            </optgroup>
+            <optgroup label="腿">
+              <option value="深蹲">深蹲</option>
+              <option value="腿举">腿举</option>
+              <option value="箭步蹲">箭步蹲</option>
+              <option value="保加利亚分腿蹲">保加利亚分腿蹲</option>
+              <option value="腿屈伸">腿屈伸</option>
+              <option value="腿弯举">腿弯举</option>
+              <option value="罗马尼亚硬拉">罗马尼亚硬拉</option>
+              <option value="臀桥">臀桥</option>
+              <option value="提踵">提踵</option>
+            </optgroup>
+            <optgroup label="臂">
+              <option value="杠铃弯举">杠铃弯举</option>
+              <option value="哑铃弯举">哑铃弯举</option>
+              <option value="锤式弯举">锤式弯举</option>
+              <option value="牧师椅弯举">牧师椅弯举</option>
+              <option value="绳索下压">绳索下压</option>
+              <option value="仰卧臂屈伸">仰卧臂屈伸</option>
+              <option value="窄距卧推">窄距卧推</option>
+              <option value="过顶臂屈伸">过顶臂屈伸</option>
+            </optgroup>
+            <optgroup label="核心">
+              <option value="卷腹">卷腹</option>
+              <option value="平板支撑">平板支撑</option>
+              <option value="悬垂举腿">悬垂举腿</option>
+              <option value="俄罗斯转体">俄罗斯转体</option>
+              <option value="绳索卷腹">绳索卷腹</option>
+              <option value="死虫">死虫</option>
+              <option value="侧桥">侧桥</option>
+            </optgroup>
+            <optgroup label="有氧">
+              <option value="跑步机">跑步机</option>
+              <option value="椭圆机">椭圆机</option>
+              <option value="动感单车">动感单车</option>
+              <option value="爬楼机">爬楼机</option>
+              <option value="划船机">划船机</option>
+            </optgroup>
+          </select>
+        </label>
+
+        <label>
+          手动输入动作名称
+          <input id="exerciseManual" type="text" placeholder="输入后优先使用手动内容">
+        </label>
+
+        <div class="field-block full">
+          <div class="field-label">目标肌群</div>
+          <div class="tag-group" data-field="targetMuscles"></div>
+        </div>
+
+        <div class="field-block full">
+          <div class="field-label">动作类型</div>
+          <div class="tag-group" data-field="exerciseType"></div>
+        </div>
+
+        <label>
+          计划组数
+          <input id="plannedSets" type="number" min="1" step="1" value="4">
+        </label>
+
+        <label>
+          默认休息时间（秒）
+          <input id="defaultRest" type="number" min="0" step="5" value="120">
+        </label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="set-title">
+      <div class="section-head">
+        <h2 id="set-title">🔥 三、当前组记录</h2>
+        <span id="currentSetLabel" class="pill">第 1 / 4 组</span>
+      </div>
+
+      <div class="form-grid set-core">
+        <label>
+          重量 kg
+          <input id="weightInput" type="number" min="0" step="0.5" inputmode="decimal" placeholder="例如 60">
+        </label>
+
+        <label>
+          次数
+          <input id="repsInput" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 10">
+        </label>
+
+        <div class="field-block full">
+          <div class="field-label">稳定性</div>
+          <div class="tag-group" data-field="stability"></div>
+        </div>
+
+        <div class="field-block full">
+          <div class="field-label">感受</div>
+          <div class="tag-group" data-field="feeling"></div>
+        </div>
+
+        <div class="field-block full required-field">
+          <div class="field-label">RIR：还能做几次</div>
+          <div class="tag-group" data-field="rir"></div>
+        </div>
+      </div>
+
+      <details class="advanced-panel">
+        <summary>高级记录</summary>
+        <div class="form-grid">
+          <div class="field-block full">
+            <div class="field-label">RPE：主观用力程度，可选</div>
+            <div class="tag-group number-tags" data-field="rpe"></div>
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">发力感</div>
+            <div class="tag-group" data-field="force"></div>
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">技术表现</div>
+            <div class="tag-group" data-field="technique"></div>
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">组类型</div>
+            <div class="tag-group" data-field="setType"></div>
+          </div>
+
+          <label class="full">
+            本组备注
+            <textarea id="setNote" rows="2" placeholder="例如：动作轨迹、保护情况、节奏变化"></textarea>
+          </label>
+        </div>
+      </details>
+
+      <details class="advanced-panel">
+        <summary>疼痛 / 不适反馈</summary>
+        <div class="form-grid">
+          <div class="field-block full">
+            <div class="field-label">疼痛时机</div>
+            <div class="tag-group" data-field="setPainTiming"></div>
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">疼痛部位</div>
+            <div class="tag-group" data-field="setPainParts"></div>
+            <input id="setPainOther" class="other-input hidden" type="text" placeholder="补充说明其他疼痛部位" data-other-for="setPainParts">
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">疼痛性质</div>
+            <div class="tag-group" data-field="setPainNature"></div>
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">疼痛程度</div>
+            <p class="hint">0 = 无痛，1–3 = 轻微，4–6 = 中等，7–10 = 明显影响训练</p>
+            <div class="tag-group number-tags" data-field="setPainLevel"></div>
+          </div>
+
+          <div class="field-block full">
+            <div class="field-label">应对方式</div>
+            <div class="tag-group" data-field="painActions"></div>
+          </div>
+
+          <label class="full">
+            疼痛备注
+            <textarea id="setPainNote" rows="2" placeholder="例如：肩前侧刺痛，本组后出现，已降低重量"></textarea>
+          </label>
+
+          <p id="setPainWarning" class="risk-warning hidden">⚠️ 本组出现明显不适，建议降低重量、调整动作或停止该动作。</p>
+        </div>
+      </details>
+
+      <div class="action-row">
+        <button id="copyLastSetBtn" class="secondary" type="button">📄 复制上一组</button>
+        <button id="completeSetBtn" class="primary" type="button">✅ 完成本组</button>
+      </div>
+    </section>
+
+    <section class="card timer-card" aria-labelledby="timer-title">
+      <h2 id="timer-title">⏱️ 四、休息计时器</h2>
+      <p id="restContext" class="rest-context">当前动作：杠铃卧推 · 下一组：第 1 组</p>
+      <div id="timerDisplay" class="timer-display">02:00</div>
+      <p id="timerMessage" class="status-text">完成一组后会自动开始休息</p>
+
+      <div class="timer-buttons">
+        <button id="startRestBtn" type="button">开始休息</button>
+        <button id="pauseRestBtn" type="button">暂停 / 继续</button>
+        <button id="addRestBtn" type="button">+30秒</button>
+        <button id="minusRestBtn" type="button">-15秒</button>
+        <button id="skipRestBtn" class="secondary" type="button">跳过休息</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="records-title">
+      <h2 id="records-title">📋 五、已完成记录</h2>
+      <div id="recordsList" class="records-list empty">还没有完成的组</div>
+    </section>
+
+    <section class="card" aria-labelledby="summary-title">
+      <h2 id="summary-title">📊 六、今日总结</h2>
+      <dl class="summary-grid">
+        <div>
+          <dt>训练时长</dt>
+          <dd id="summaryDuration">00:00</dd>
+        </div>
+        <div>
+          <dt>总组数</dt>
+          <dd id="summarySets">0</dd>
+        </div>
+        <div>
+          <dt>总次数</dt>
+          <dd id="summaryReps">0</dd>
+        </div>
+        <div>
+          <dt>Volume：训练量</dt>
+          <dd id="summaryVolume">0 kg</dd>
+        </div>
+        <div>
+          <dt>最佳组</dt>
+          <dd id="summaryBestSet">暂无</dd>
+        </div>
+        <div>
+          <dt>e1RM：估算 1RM</dt>
+          <dd id="summaryE1rm">暂无</dd>
+        </div>
+        <div class="full">
+          <dt>PR：个人纪录</dt>
+          <dd id="summaryPr">暂无历史对比</dd>
+        </div>
+        <div class="full">
+          <dt>今日状态标签摘要</dt>
+          <dd id="summaryStatusTags">正常</dd>
+        </div>
+        <div class="full">
+          <dt>疼痛风险摘要</dt>
+          <dd id="summaryPainRisk">暂无明显不适信号</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card" aria-labelledby="post-title">
+      <h2 id="post-title">✅ 九、训练后反馈</h2>
+      <div class="form-grid">
+        <div class="field-block full">
+          <div class="field-label">训练后整体感觉</div>
+          <div class="tag-group" data-field="postFeeling"></div>
+        </div>
+
+        <label class="full">
+          下次训练备注
+          <textarea id="nextTrainingNote" rows="3" placeholder="例如：下次卧推先热身肩袖，夹胸重量保持，卧推尝试加 2.5kg"></textarea>
+        </label>
+
+        <details class="advanced-panel full">
+          <summary>训练后疼痛 / 不适详情</summary>
+          <div class="form-grid">
+            <div class="field-block full">
+              <div class="field-label">训练后疼痛 / 不适部位</div>
+              <div class="tag-group" data-field="postPainParts"></div>
+              <input id="postPainOther" class="other-input hidden" type="text" placeholder="补充说明其他训练后不适部位" data-other-for="postPainParts">
+            </div>
+
+            <div class="field-block full">
+              <div class="field-label">训练后不适程度</div>
+              <div class="tag-group number-tags" data-field="postPainLevel"></div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="history-title">
+      <h2 id="history-title">🗂️ 七、历史记录</h2>
+      <div class="action-row stack-on-small">
+        <button id="saveTodayBtn" class="primary" type="button">💾 保存今日训练</button>
+        <button id="viewHistoryBtn" type="button">📚 查看历史记录</button>
+        <button id="clearHistoryBtn" class="danger" type="button">🧹 清空历史记录</button>
+      </div>
+      <div id="historyList" class="history-list hidden"></div>
+    </section>
+
+    <section class="card" aria-labelledby="ai-title">
+      <h2 id="ai-title">🤖 八、复制给 AI</h2>
+      <div class="action-row">
+        <button id="generateAiBtn" class="primary" type="button">🧠 生成 AI 分析文本</button>
+        <button id="copyAiBtn" type="button">📋 复制到剪贴板</button>
+      </div>
+      <textarea id="aiOutput" rows="18" readonly placeholder="点击生成后，这里会出现可复制的训练报告"></textarea>
+      <p id="copyStatus" class="status-text"></p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
