@@ -20,18 +20,18 @@
       </div>
       <div class="draft-actions">
         <button id="continueDraftBtn" class="primary" type="button">继续训练</button>
-        <button id="discardDraftBtn" class="secondary" type="button">放弃草稿</button>
+        <button id="discardDraftBtn" class="secondary" type="button">放弃记录</button>
       </div>
     </section>
 
     <nav class="quick-jump" aria-label="快速跳转">
-      <a href="#set-section">🔥 当前组</a>
+      <a href="#set-section">🔥 当前</a>
       <a href="#timer-section">⏱ 休息</a>
       <a href="#records-section">📋 记录</a>
       <a href="#summary-section">📊 总结</a>
     </nav>
 
-    <section class="card" aria-labelledby="today-title">
+    <section id="today-section" class="card" aria-labelledby="today-title">
       <h2 id="today-title">📝 一、今日训练信息</h2>
       <div class="form-grid">
         <label>
@@ -102,8 +102,8 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="pre-pain-title">
-      <h2 id="pre-pain-title">🩹 练前不适</h2>
+    <section id="pre-pain-section" class="card" aria-labelledby="pre-pain-title">
+      <h2 id="pre-pain-title">🩹 二、练前不适</h2>
       <div class="form-grid">
         <div class="field-block full">
           <div class="field-label">练前不适部位</div>
@@ -124,8 +124,8 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="exercise-title">
-      <h2 id="exercise-title">🏋️ 二、当前动作设置</h2>
+    <section id="exercise-section" class="card" aria-labelledby="exercise-title">
+      <h2 id="exercise-title">🏋️ 三、当前动作设置</h2>
       <div class="form-grid">
         <label>
           常用动作
@@ -232,7 +232,7 @@
 
     <section id="set-section" class="card" aria-labelledby="set-title">
       <div class="section-head">
-        <h2 id="set-title">🔥 三、当前组记录</h2>
+        <h2 id="set-title">🔥 四、当前组记录</h2>
         <span id="currentSetLabel" class="pill">第 1 / 4 组</span>
       </div>
 
@@ -339,7 +339,7 @@
     </section>
 
     <section id="timer-section" class="card timer-card" aria-labelledby="timer-title">
-      <h2 id="timer-title">⏱️ 四、休息计时器</h2>
+      <h2 id="timer-title">⏱️ 五、休息计时器</h2>
       <p id="restContext" class="rest-context">当前动作：杠铃卧推 · 下一组：第 1 组</p>
       <div id="timerDisplay" class="timer-display">02:00</div>
       <p id="timerMessage" class="status-text">完成一组后会自动开始休息</p>
@@ -354,12 +354,12 @@
     </section>
 
     <section id="records-section" class="card" aria-labelledby="records-title">
-      <h2 id="records-title">📋 五、已完成记录</h2>
+      <h2 id="records-title">📋 六、已完成记录</h2>
       <div id="recordsList" class="records-list empty">还没有完成的组</div>
     </section>
 
     <section id="summary-section" class="card" aria-labelledby="summary-title">
-      <h2 id="summary-title">📊 六、今日总结</h2>
+      <h2 id="summary-title">📊 七、今日总结</h2>
       <dl class="summary-grid">
         <div>
           <dt>训练时长</dt>
@@ -400,8 +400,8 @@
       </dl>
     </section>
 
-    <section class="card" aria-labelledby="post-title">
-      <h2 id="post-title">✅ 九、训练后反馈</h2>
+    <section id="post-section" class="card" aria-labelledby="post-title">
+      <h2 id="post-title">✅ 八、训练后反馈</h2>
       <div class="form-grid">
         <div class="field-block full">
           <div class="field-label">训练后整体感觉</div>
@@ -431,8 +431,8 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="history-title">
-      <h2 id="history-title">🗂️ 七、历史记录</h2>
+    <section id="history-section" class="card" aria-labelledby="history-title">
+      <h2 id="history-title">🗂️ 九、历史记录</h2>
       <div class="action-row stack-on-small">
         <button id="saveTodayBtn" class="primary" type="button">💾 保存今日训练</button>
         <button id="viewHistoryBtn" type="button">📚 查看历史记录</button>
@@ -441,8 +441,8 @@
       <div id="historyList" class="history-list hidden"></div>
     </section>
 
-    <section class="card" aria-labelledby="ai-title">
-      <h2 id="ai-title">🤖 八、复制给 AI</h2>
+    <section id="ai-section" class="card" aria-labelledby="ai-title">
+      <h2 id="ai-title">🤖 十、复制给 AI</h2>
       <div class="action-row">
         <button id="generateAiBtn" class="primary" type="button">🧠 生成 AI 分析文本</button>
         <button id="copyAiBtn" type="button">📋 复制到剪贴板</button>

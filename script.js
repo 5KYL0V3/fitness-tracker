@@ -12,6 +12,27 @@ const restRecommendations = {
   "拉伸": 30
 };
 
+const commonExerciseDefaults = {};
+registerExerciseDefaults(["杠铃卧推", "哑铃卧推", "史密斯卧推", "器械推胸"], ["胸", "三头", "肩前束"], "复合动作", 120);
+registerExerciseDefaults(["上斜杠铃卧推", "上斜哑铃卧推"], ["上胸", "三头", "肩前束"], "复合动作", 120);
+registerExerciseDefaults(["绳索夹胸", "蝴蝶机夹胸"], ["胸"], "孤立动作", 75);
+registerExerciseDefaults(["高位下拉", "引体向上"], ["背", "二头"], "复合动作", 120);
+registerExerciseDefaults(["坐姿划船", "杠铃划船", "哑铃划船", "T 杠划船", "器械划船"], ["背", "二头"], "复合动作", 120);
+registerExerciseDefaults(["直臂下压"], ["背"], "孤立动作", 75);
+registerExerciseDefaults(["硬拉"], ["下背", "臀", "腿", "背"], "复合动作", 150);
+registerExerciseDefaults(["哑铃推肩", "杠铃推举", "史密斯推肩", "阿诺德推举"], ["肩前束", "肩中束", "三头"], "复合动作", 120);
+registerExerciseDefaults(["侧平举"], ["肩中束"], "孤立动作", 75);
+registerExerciseDefaults(["反向飞鸟", "面拉"], ["肩后束", "上背"], "孤立动作", 75);
+registerExerciseDefaults(["深蹲", "腿举", "箭步蹲", "保加利亚分腿蹲"], ["股四头肌", "臀", "核心"], "复合动作", 120);
+registerExerciseDefaults(["腿屈伸"], ["股四头肌"], "孤立动作", 75);
+registerExerciseDefaults(["腿弯举", "罗马尼亚硬拉"], ["腘绳肌", "臀"], "复合动作", 120);
+registerExerciseDefaults(["提踵"], ["小腿"], "孤立动作", 75);
+registerExerciseDefaults(["杠铃弯举", "哑铃弯举", "锤式弯举", "牧师椅弯举"], ["二头"], "孤立动作", 75);
+registerExerciseDefaults(["绳索下压", "仰卧臂屈伸", "过顶臂屈伸"], ["三头"], "孤立动作", 75);
+registerExerciseDefaults(["窄距卧推"], ["三头", "胸", "肩前束"], "复合动作", 120);
+registerExerciseDefaults(["卷腹", "平板支撑", "悬垂举腿", "俄罗斯转体", "绳索卷腹", "死虫", "侧桥"], ["核心"], "核心", 60);
+registerExerciseDefaults(["跑步机", "椭圆机", "动感单车", "爬楼机", "划船机"], ["有氧", "全身"], "有氧", 60);
+
 const painRiskNatures = ["刺痛", "锐痛", "麻木", "放射痛", "关节不适"];
 const painPartOptions = ["无", "颈", "斜方肌", "肩前侧", "肩后侧", "肘", "腕", "胸", "肋部", "上背", "下背", "腰", "髋", "臀", "大腿前侧", "大腿后侧", "膝", "小腿", "踝", "足底", "其他"];
 const painPartOptionsWithoutNone = painPartOptions.filter((item) => item !== "无");
@@ -96,7 +117,7 @@ const tagConfigs = {
   },
   targetMuscles: {
     mode: "multi",
-    options: ["胸", "上胸", "下胸", "背", "上背", "下背", "肩前束", "肩中束", "肩后束", "腿", "臀", "股四头肌", "腘绳肌", "小腿", "二头", "三头", "核心", "全身"],
+    options: ["胸", "上胸", "下胸", "背", "上背", "下背", "肩前束", "肩中束", "肩后束", "腿", "臀", "股四头肌", "腘绳肌", "小腿", "二头", "三头", "核心", "有氧", "全身"],
     defaultValue: ["胸"]
   },
   exerciseType: {
@@ -200,6 +221,9 @@ let pendingDelete = null;
 let draftSaveTimer = null;
 let isApplyingDraft = false;
 let draftRestorePending = false;
+let currentWorkoutId = createId();
+let workoutSaved = false;
+let targetMusclesManuallyEdited = false;
 
 const timerState = {
   remaining: restRecommendations["复合动作"],
@@ -275,6 +299,7 @@ function init() {
   renderRecords();
   updateSummary();
   renderHistory();
+  updateSaveButtonState();
   checkForDraft();
 
   setInterval(updateSummary, 1000);
@@ -301,15 +326,26 @@ function bindEvents() {
   document.addEventListener("click", handleTagClick);
   document.addEventListener("input", handleDraftInput);
   document.addEventListener("change", handleDraftInput);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      saveDraftImmediately();
+    }
+  });
+  window.addEventListener("pagehide", saveDraftImmediately);
+  window.addEventListener("beforeunload", saveDraftImmediately);
 
   dom.exerciseSelect.addEventListener("change", () => {
     handleExerciseIdentityChange();
+    applySelectedExerciseDefaults();
     updateCurrentSetLabel();
     updateRestContext();
     renderRecords();
   });
   dom.exerciseManual.addEventListener("input", () => {
     handleExerciseIdentityChange();
+    if (!dom.exerciseManual.value.trim()) {
+      applySelectedExerciseDefaults();
+    }
     updateCurrentSetLabel();
     updateRestContext();
     renderRecords();
@@ -382,6 +418,10 @@ function handleTagClick(event) {
   updateTagGroup(field);
   updateOtherInputs();
   handleTagSideEffects(field);
+  if (field === "targetMuscles") {
+    targetMusclesManuallyEdited = true;
+  }
+  markWorkoutDirty();
   scheduleDraftSave();
 }
 
@@ -444,6 +484,7 @@ function handleExerciseIdentityChange() {
   }
 
   activeExerciseName = nextExerciseName;
+  targetMusclesManuallyEdited = false;
   resetCurrentSetForm();
 }
 
@@ -508,6 +549,22 @@ function scrollToTimer() {
 function getCurrentExerciseName() {
   const manualName = dom.exerciseManual.value.trim();
   return manualName || dom.exerciseSelect.value;
+}
+
+function applySelectedExerciseDefaults() {
+  if (isApplyingDraft || dom.exerciseManual.value.trim()) return;
+
+  const defaults = commonExerciseDefaults[dom.exerciseSelect.value];
+  if (!defaults) return;
+
+  if (!targetMusclesManuallyEdited) {
+    setTagValue("targetMuscles", defaults.targetMuscles);
+  }
+
+  setTagValue("exerciseType", defaults.exerciseType);
+  dom.defaultRest.value = defaults.defaultRestSeconds;
+  syncTimerWithDefaultRest();
+  scheduleDraftSave();
 }
 
 function getCurrentExerciseSettings() {
@@ -603,6 +660,7 @@ function completeCurrentSet() {
   };
 
   todayRecords.push(record);
+  markWorkoutDirty();
   prepareNextSet(record);
   renderRecords();
   updateSummary();
@@ -640,20 +698,33 @@ function prepareNextSet(lastRecord) {
 }
 
 function copyLastSet() {
-  const lastRecord = todayRecords[todayRecords.length - 1];
+  const exerciseName = getCurrentExerciseName();
+  const lastRecord = [...todayRecords].reverse().find((record) => record.exerciseName === exerciseName);
 
   if (!lastRecord) {
-    alert("还没有上一组可以复制");
+    alert("当前动作还没有上一组可复制。");
     return;
   }
 
   dom.weightInput.value = lastRecord.weight;
   dom.repsInput.value = lastRecord.reps;
+  dom.setNote.value = "";
+  dom.setPainNote.value = "";
   setTagValue("stability", lastRecord.stability);
   setTagValue("feeling", lastRecord.feeling);
   setTagValue("rir", lastRecord.rir);
   setTagValue("rpe", lastRecord.rpe === "未填" ? "" : lastRecord.rpe);
   setTagValue("force", normalizeArray(lastRecord.force));
+  setTagValue("technique", normalizeArray(lastRecord.technique));
+  setTagValue("setType", lastRecord.setType || "正式组");
+  setTagValue("setPainTiming", "无");
+  setTagValue("setPainParts", ["无"]);
+  setTagValue("setPainNature", []);
+  setTagValue("setPainLevel", "0");
+  setTagValue("painActions", []);
+  updateSetPainWarning();
+  markWorkoutDirty();
+  scheduleDraftSave();
 }
 
 function startRestTimer(seconds) {
@@ -858,6 +929,7 @@ function handleRecordActions(event) {
     if (removed.length === 0) return;
 
     renumberSets();
+    markWorkoutDirty();
     renderRecords();
     updateSummary();
     updateCurrentSetLabel();
@@ -874,6 +946,7 @@ function handleRecordActions(event) {
 
   const [record] = todayRecords.splice(recordIndex, 1);
   renumberSets();
+  markWorkoutDirty();
   renderRecords();
   updateSummary();
   updateCurrentSetLabel();
@@ -911,6 +984,7 @@ function undoLastDelete() {
   pendingDelete = null;
   hideUndoToast();
   renumberSets();
+  markWorkoutDirty();
   renderRecords();
   updateSummary();
   updateCurrentSetLabel();
@@ -982,8 +1056,10 @@ function getPostWorkoutFeedback() {
 
 function buildWorkoutSnapshot(durationSeconds = getTrainingDurationSeconds()) {
   return {
-    id: createId(),
+    id: currentWorkoutId,
+    workoutId: currentWorkoutId,
     savedAt: new Date().toISOString(),
+    workoutStartedAt,
     info: getTodayInfo(),
     preWorkout: getPreWorkoutInfo(),
     records: todayRecords.map((record) => ({ ...record, pain: { ...(record.pain || {}) } })),
@@ -1107,17 +1183,40 @@ function buildHistoryBestMap() {
   return bestMap;
 }
 
+function markWorkoutDirty() {
+  if (isApplyingDraft) return;
+  if (!workoutSaved) return;
+
+  workoutSaved = false;
+  updateSaveButtonState();
+}
+
+function updateSaveButtonState() {
+  dom.saveTodayBtn.disabled = workoutSaved;
+  dom.saveTodayBtn.textContent = workoutSaved ? "已保存今日训练" : "💾 保存今日训练";
+}
+
 function saveTodayWorkout() {
+  if (workoutSaved) return;
+
   if (todayRecords.length === 0) {
     alert("请至少完成一组后再保存");
     return;
   }
 
   const workout = buildWorkoutSnapshot(getTrainingDurationSeconds());
-  historyRecords.unshift(workout);
+  const existingIndex = historyRecords.findIndex((item) => (item.workoutId || item.id) === workout.workoutId);
+  if (existingIndex >= 0) {
+    historyRecords[existingIndex] = workout;
+  } else {
+    historyRecords.unshift(workout);
+  }
+
+  workoutSaved = true;
   saveHistory();
   clearTimeout(draftSaveTimer);
   removeDraft();
+  updateSaveButtonState();
   renderHistory();
   updateSummary();
   alert("今日训练已保存");
@@ -1184,7 +1283,12 @@ function handleHistoryClick(event) {
     const shouldDelete = confirm("确定删除这条历史记录吗？");
     if (!shouldDelete) return;
 
+    const deletingCurrentWorkout = deleteButton.dataset.deleteHistory === currentWorkoutId;
     historyRecords = historyRecords.filter((workout) => workout.id !== deleteButton.dataset.deleteHistory);
+    if (deletingCurrentWorkout) {
+      workoutSaved = false;
+      updateSaveButtonState();
+    }
     saveHistory();
     renderHistory();
     updateSummary();
@@ -1197,6 +1301,8 @@ function clearHistory() {
 
   historyRecords = [];
   expandedHistoryId = null;
+  workoutSaved = false;
+  updateSaveButtonState();
   saveHistory();
   renderHistory();
   updateSummary();
@@ -1209,6 +1315,7 @@ function handleDraftInput(event) {
   if (!target.matches("input, textarea, select")) return;
 
   updateSummary();
+  markWorkoutDirty();
   scheduleDraftSave();
 }
 
@@ -1246,6 +1353,9 @@ function applyDraft(draft) {
 
   todayRecords.splice(0, todayRecords.length, ...(draft.records || []));
   workoutStartedAt = draft.workoutStartedAt || null;
+  currentWorkoutId = draft.workoutId || draft.id || currentWorkoutId || createId();
+  workoutSaved = Boolean(draft.workoutSaved && historyRecords.some((workout) => (workout.workoutId || workout.id) === currentWorkoutId));
+  targetMusclesManuallyEdited = Boolean(draft.targetMusclesManuallyEdited);
 
   Object.entries(tagConfigs).forEach(([field, config]) => {
     const value = draft.tagValues && Object.prototype.hasOwnProperty.call(draft.tagValues, field)
@@ -1288,6 +1398,7 @@ function applyDraft(draft) {
   updateCurrentSetLabel();
   updateRestContext();
   updateSetPainWarning();
+  updateSaveButtonState();
 
   isApplyingDraft = false;
 
@@ -1324,8 +1435,19 @@ function scheduleDraftSave() {
   draftSaveTimer = setTimeout(saveDraft, DRAFT_SAVE_DELAY);
 }
 
-function saveDraft() {
-  if (isApplyingDraft || draftRestorePending || pendingDelete) return;
+function saveDraftImmediately() {
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = null;
+  saveDraft({ force: true });
+}
+
+function saveDraft(options = {}) {
+  const force = Boolean(options.force);
+  if (isApplyingDraft || draftRestorePending || (!force && pendingDelete)) return;
+  if (workoutSaved) {
+    removeDraft();
+    return;
+  }
 
   const draft = buildDraft();
   if (!hasDraftContent(draft)) {
@@ -1344,6 +1466,9 @@ function buildDraft() {
 
   return {
     version: 1,
+    workoutId: currentWorkoutId,
+    workoutSaved,
+    targetMusclesManuallyEdited,
     savedAt: new Date().toISOString(),
     workoutStartedAt,
     tagValues: structuredCloneSafe(tagValues),
@@ -1539,6 +1664,16 @@ function groupRecordsByExercise(records) {
 function getTrainingDurationSeconds() {
   if (!workoutStartedAt) return 0;
   return Math.max(0, Math.floor((Date.now() - workoutStartedAt) / 1000));
+}
+
+function registerExerciseDefaults(names, targetMuscles, exerciseType, defaultRestSeconds) {
+  names.forEach((name) => {
+    commonExerciseDefaults[name] = {
+      targetMuscles: [...targetMuscles],
+      exerciseType,
+      defaultRestSeconds
+    };
+  });
 }
 
 function createId() {
