@@ -1,4 +1,7 @@
 const STORAGE_KEY = "fitnessWorkoutHistory";
+const DRAFT_KEY = "fitnessWorkoutDraft";
+const DRAFT_SAVE_DELAY = 300;
+const DELETE_UNDO_MS = 6500;
 
 const restRecommendations = {
   "复合动作": 120,
@@ -40,7 +43,9 @@ const tagConfigs = {
   sleepStatus: {
     mode: "multi",
     options: ["睡眠好", "睡眠一般", "睡眠不足", "熬夜", "失眠", "早醒", "午睡过", "睡太久", "起床困难"],
-    defaultValue: []
+    defaultValue: ["睡眠一般"],
+    exclusive: ["睡眠好", "睡眠一般"],
+    defaultWhenEmpty: "睡眠一般"
   },
   nutritionStatus: {
     mode: "multi",
@@ -130,7 +135,7 @@ const tagConfigs = {
   technique: {
     mode: "multi",
     options: ["动作标准", "动作变形", "幅度不足", "节奏太快", "节奏稳定", "离心控制好", "离心控制差", "借力明显", "呼吸混乱", "核心不稳", "握力不足", "左右不平衡"],
-    defaultValue: ["动作标准"]
+    defaultValue: []
   },
   setType: {
     mode: "single",
@@ -144,8 +149,10 @@ const tagConfigs = {
   },
   setPainParts: {
     mode: "multi",
-    options: painPartOptionsWithoutNone,
-    defaultValue: []
+    options: painPartOptions,
+    defaultValue: ["无"],
+    exclusive: ["无"],
+    defaultWhenEmpty: "无"
   },
   setPainNature: {
     mode: "multi",
@@ -188,6 +195,11 @@ let workoutStartedAt = null;
 let historyRecords = loadHistory();
 let expandedHistoryId = null;
 let tagValues = {};
+let activeExerciseName = "";
+let pendingDelete = null;
+let draftSaveTimer = null;
+let isApplyingDraft = false;
+let draftRestorePending = false;
 
 const timerState = {
   remaining: restRecommendations["复合动作"],
@@ -209,6 +221,10 @@ const dom = {
   setNote: document.getElementById("setNote"),
   setPainNote: document.getElementById("setPainNote"),
   setPainWarning: document.getElementById("setPainWarning"),
+  draftRestore: document.getElementById("draftRestore"),
+  draftSummary: document.getElementById("draftSummary"),
+  continueDraftBtn: document.getElementById("continueDraftBtn"),
+  discardDraftBtn: document.getElementById("discardDraftBtn"),
   copyLastSetBtn: document.getElementById("copyLastSetBtn"),
   completeSetBtn: document.getElementById("completeSetBtn"),
   restContext: document.getElementById("restContext"),
@@ -237,7 +253,10 @@ const dom = {
   generateAiBtn: document.getElementById("generateAiBtn"),
   copyAiBtn: document.getElementById("copyAiBtn"),
   aiOutput: document.getElementById("aiOutput"),
-  copyStatus: document.getElementById("copyStatus")
+  copyStatus: document.getElementById("copyStatus"),
+  undoToast: document.getElementById("undoToast"),
+  undoMessage: document.getElementById("undoMessage"),
+  undoDeleteBtn: document.getElementById("undoDeleteBtn")
 };
 
 init();
@@ -247,6 +266,7 @@ function init() {
   setupTagGroups();
   setRecommendedRest();
   timerState.remaining = getDefaultRestSeconds();
+  activeExerciseName = getCurrentExerciseName();
   bindEvents();
   updateCurrentSetLabel();
   updateRestContext();
@@ -255,6 +275,7 @@ function init() {
   renderRecords();
   updateSummary();
   renderHistory();
+  checkForDraft();
 
   setInterval(updateSummary, 1000);
 }
@@ -278,13 +299,17 @@ function setupTagGroups() {
 
 function bindEvents() {
   document.addEventListener("click", handleTagClick);
+  document.addEventListener("input", handleDraftInput);
+  document.addEventListener("change", handleDraftInput);
 
   dom.exerciseSelect.addEventListener("change", () => {
+    handleExerciseIdentityChange();
     updateCurrentSetLabel();
     updateRestContext();
     renderRecords();
   });
   dom.exerciseManual.addEventListener("input", () => {
+    handleExerciseIdentityChange();
     updateCurrentSetLabel();
     updateRestContext();
     renderRecords();
@@ -314,6 +339,9 @@ function bindEvents() {
 
   dom.generateAiBtn.addEventListener("click", generateAiText);
   dom.copyAiBtn.addEventListener("click", copyAiText);
+  dom.continueDraftBtn.addEventListener("click", continueDraft);
+  dom.discardDraftBtn.addEventListener("click", discardDraft);
+  dom.undoDeleteBtn.addEventListener("click", undoLastDelete);
 }
 
 function handleTagClick(event) {
@@ -354,6 +382,7 @@ function handleTagClick(event) {
   updateTagGroup(field);
   updateOtherInputs();
   handleTagSideEffects(field);
+  scheduleDraftSave();
 }
 
 function handleTagSideEffects(field) {
@@ -393,6 +422,7 @@ function setTagValue(field, value) {
   updateTagGroup(field);
   updateOtherInputs();
   handleTagSideEffects(field);
+  scheduleDraftSave();
 }
 
 function updateOtherInputs() {
@@ -401,6 +431,78 @@ function updateOtherInputs() {
     const values = normalizeArray(tagValues[field]);
     input.classList.toggle("hidden", !values.includes("其他"));
   });
+}
+
+function handleExerciseIdentityChange() {
+  if (isApplyingDraft) return;
+
+  const nextExerciseName = getCurrentExerciseName();
+  if (nextExerciseName === activeExerciseName) return;
+
+  if (hasCurrentSetDraft()) {
+    showNotice("已清空未保存的当前组草稿");
+  }
+
+  activeExerciseName = nextExerciseName;
+  resetCurrentSetForm();
+}
+
+function hasCurrentSetDraft() {
+  return Boolean(
+    dom.weightInput.value ||
+    dom.repsInput.value ||
+    dom.setNote.value.trim() ||
+    dom.setPainNote.value.trim() ||
+    getSingleValue("rpe") ||
+    getSingleValue("setPainTiming", "无") !== "无" ||
+    Number(getSingleValue("setPainLevel", "0")) > 0 ||
+    hasMeaningfulValues(getMultiValueWithOther("setPainParts")) ||
+    hasMeaningfulValues(getMultiValueWithOther("setPainNature")) ||
+    hasMeaningfulValues(getMultiValueWithOther("painActions"))
+  );
+}
+
+function resetCurrentSetForm() {
+  dom.weightInput.value = "";
+  dom.repsInput.value = "";
+  dom.setNote.value = "";
+  dom.setPainNote.value = "";
+  setTagValue("stability", "稳定");
+  setTagValue("feeling", "正常");
+  setTagValue("rir", "2");
+  setTagValue("rpe", "");
+  setTagValue("force", ["一般"]);
+  setTagValue("technique", []);
+  setTagValue("setType", "正式组");
+  setTagValue("setPainTiming", "无");
+  setTagValue("setPainParts", ["无"]);
+  setTagValue("setPainNature", []);
+  setTagValue("setPainLevel", "0");
+  setTagValue("painActions", []);
+  collapseSetPanels();
+  resetRestTimer();
+  updateSetPainWarning();
+  updateCurrentSetLabel();
+  updateRestContext();
+  scheduleDraftSave();
+}
+
+function resetRestTimer() {
+  clearTimerInterval();
+  timerState.running = false;
+  timerState.remaining = getDefaultRestSeconds();
+  updateTimerDisplay();
+  setTimerMessage("已重置休息计时器");
+}
+
+function collapseSetPanels() {
+  document.querySelectorAll("#set-section details").forEach((details) => {
+    details.open = false;
+  });
+}
+
+function scrollToTimer() {
+  document.getElementById("timer-section").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function getCurrentExerciseName() {
@@ -432,6 +534,7 @@ function syncTimerWithDefaultRest() {
   timerState.remaining = getDefaultRestSeconds();
   updateTimerDisplay();
   updateRestContext();
+  scheduleDraftSave();
 }
 
 function updateCurrentSetLabel() {
@@ -506,6 +609,9 @@ function completeCurrentSet() {
   updateCurrentSetLabel();
   updateRestContext();
   startRestTimer(settings.defaultRestSeconds);
+  collapseSetPanels();
+  scrollToTimer();
+  scheduleDraftSave();
 }
 
 function getCurrentSetPain() {
@@ -526,7 +632,7 @@ function prepareNextSet(lastRecord) {
   dom.setPainNote.value = "";
   setTagValue("rpe", "");
   setTagValue("setPainTiming", "无");
-  setTagValue("setPainParts", []);
+  setTagValue("setPainParts", ["无"]);
   setTagValue("setPainNature", []);
   setTagValue("setPainLevel", "0");
   setTagValue("painActions", []);
@@ -567,11 +673,13 @@ function startRestTimer(seconds) {
   timerState.intervalId = setInterval(() => {
     timerState.remaining -= 1;
     updateTimerDisplay();
+    scheduleDraftSave();
 
     if (timerState.remaining <= 0) {
       finishRest();
     }
   }, 1000);
+  scheduleDraftSave();
 }
 
 function togglePauseTimer() {
@@ -584,6 +692,7 @@ function togglePauseTimer() {
     clearTimerInterval();
     timerState.running = false;
     setTimerMessage("已暂停");
+    scheduleDraftSave();
     return;
   }
 
@@ -592,11 +701,13 @@ function togglePauseTimer() {
   timerState.intervalId = setInterval(() => {
     timerState.remaining -= 1;
     updateTimerDisplay();
+    scheduleDraftSave();
 
     if (timerState.remaining <= 0) {
       finishRest();
     }
   }, 1000);
+  scheduleDraftSave();
 }
 
 function adjustTimer(deltaSeconds) {
@@ -606,6 +717,7 @@ function adjustTimer(deltaSeconds) {
   if (timerState.remaining === 0) {
     finishRest();
   }
+  scheduleDraftSave();
 }
 
 function skipRest() {
@@ -614,6 +726,7 @@ function skipRest() {
   timerState.remaining = 0;
   updateTimerDisplay();
   setTimerMessage("已跳过休息");
+  scheduleDraftSave();
 }
 
 function finishRest() {
@@ -626,6 +739,7 @@ function finishRest() {
   if ("vibrate" in navigator) {
     navigator.vibrate(250);
   }
+  scheduleDraftSave();
 }
 
 function clearTimerInterval() {
@@ -665,6 +779,7 @@ function renderRecords() {
     const isCompleted = completedSets >= plannedSets;
     const statusText = isCompleted ? "已完成" : isCurrent ? "进行中" : "未完成";
     const statusClass = isCompleted ? "done" : isCurrent ? "active" : "idle";
+    const detailsOpen = isCompleted ? "" : "open";
 
     return `
       <article class="exercise-record-card ${isCurrent ? "is-current" : ""}">
@@ -698,9 +813,12 @@ function renderRecords() {
           </div>
         </dl>
 
-        <div class="set-list" aria-label="${escapeHtml(exercise.name)}的组记录">
-          ${exercise.records.map((record) => renderSetRow(record)).join("")}
-        </div>
+        <details class="set-details" ${detailsOpen}>
+          <summary>组记录（${completedSets} 组）</summary>
+          <div class="set-list" aria-label="${escapeHtml(exercise.name)}的组记录">
+            ${exercise.records.map((record) => renderSetRow(record)).join("")}
+          </div>
+        </details>
 
         <button class="delete-exercise-btn small-danger" type="button" data-delete-exercise="${encodeURIComponent(exercise.name)}">删除整个动作</button>
       </article>
@@ -728,20 +846,23 @@ function handleRecordActions(event) {
   const deleteExerciseButton = event.target.closest("[data-delete-exercise]");
   if (deleteExerciseButton) {
     const exerciseName = decodeURIComponent(deleteExerciseButton.dataset.deleteExercise);
-    const shouldDelete = confirm(`确定删除「${exerciseName}」的全部组记录吗？`);
-    if (!shouldDelete) return;
+    const removed = [];
 
     for (let index = todayRecords.length - 1; index >= 0; index -= 1) {
       if (todayRecords[index].exerciseName === exerciseName) {
+        removed.unshift({ index, record: todayRecords[index] });
         todayRecords.splice(index, 1);
       }
     }
+
+    if (removed.length === 0) return;
 
     renumberSets();
     renderRecords();
     updateSummary();
     updateCurrentSetLabel();
     updateRestContext();
+    showUndoDelete(`已删除：${exerciseName}（${removed.length} 组）`, removed);
     return;
   }
 
@@ -751,12 +872,70 @@ function handleRecordActions(event) {
   const recordIndex = todayRecords.findIndex((record) => record.id === deleteButton.dataset.deleteRecord);
   if (recordIndex === -1) return;
 
-  todayRecords.splice(recordIndex, 1);
+  const [record] = todayRecords.splice(recordIndex, 1);
   renumberSets();
   renderRecords();
   updateSummary();
   updateCurrentSetLabel();
   updateRestContext();
+  showUndoDelete(`已删除：${record.exerciseName} 第 ${record.setNumber} 组`, [{ index: recordIndex, record }]);
+}
+
+function showUndoDelete(message, removedItems) {
+  clearPendingDelete();
+  clearTimeout(draftSaveTimer);
+  pendingDelete = {
+    removedItems,
+    timeoutId: setTimeout(() => {
+      pendingDelete = null;
+      hideUndoToast();
+      scheduleDraftSave();
+    }, DELETE_UNDO_MS)
+  };
+  dom.undoMessage.textContent = message;
+  dom.undoDeleteBtn.classList.remove("hidden");
+  dom.undoToast.classList.remove("hidden");
+}
+
+function undoLastDelete() {
+  if (!pendingDelete) return;
+
+  clearTimeout(pendingDelete.timeoutId);
+  pendingDelete.removedItems
+    .slice()
+    .sort((a, b) => a.index - b.index)
+    .forEach((item) => {
+      todayRecords.splice(Math.min(item.index, todayRecords.length), 0, item.record);
+    });
+
+  pendingDelete = null;
+  hideUndoToast();
+  renumberSets();
+  renderRecords();
+  updateSummary();
+  updateCurrentSetLabel();
+  updateRestContext();
+  scheduleDraftSave();
+}
+
+function clearPendingDelete() {
+  if (!pendingDelete) return;
+  clearTimeout(pendingDelete.timeoutId);
+  pendingDelete = null;
+}
+
+function hideUndoToast() {
+  dom.undoToast.classList.add("hidden");
+}
+
+function showNotice(message) {
+  if (pendingDelete) return;
+  dom.undoMessage.textContent = message;
+  dom.undoDeleteBtn.classList.add("hidden");
+  dom.undoToast.classList.remove("hidden");
+  setTimeout(() => {
+    if (!pendingDelete) hideUndoToast();
+  }, 2400);
 }
 
 function renumberSets() {
@@ -937,6 +1116,8 @@ function saveTodayWorkout() {
   const workout = buildWorkoutSnapshot(getTrainingDurationSeconds());
   historyRecords.unshift(workout);
   saveHistory();
+  clearTimeout(draftSaveTimer);
+  removeDraft();
   renderHistory();
   updateSummary();
   alert("今日训练已保存");
@@ -1019,6 +1200,217 @@ function clearHistory() {
   saveHistory();
   renderHistory();
   updateSummary();
+}
+
+function handleDraftInput(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.closest("#draftRestore") || target.closest("#undoToast")) return;
+  if (!target.matches("input, textarea, select")) return;
+
+  updateSummary();
+  scheduleDraftSave();
+}
+
+function checkForDraft() {
+  const draft = loadDraft();
+  if (!draft || !hasDraftContent(draft)) return;
+
+  draftRestorePending = true;
+  const records = draft.records || [];
+  const exerciseCount = groupRecordsByExercise(records).length;
+  const date = draft.form?.workoutDate || draft.info?.date || "未记录日期";
+  dom.draftSummary.textContent = `${date} · 已完成动作 ${exerciseCount} 个 · 已完成组数 ${records.length} 组`;
+  dom.draftRestore.classList.remove("hidden");
+}
+
+function continueDraft() {
+  const draft = loadDraft();
+  if (!draft) return;
+
+  draftRestorePending = false;
+  dom.draftRestore.classList.add("hidden");
+  applyDraft(draft);
+  scheduleDraftSave();
+}
+
+function discardDraft() {
+  draftRestorePending = false;
+  removeDraft();
+  dom.draftRestore.classList.add("hidden");
+}
+
+function applyDraft(draft) {
+  isApplyingDraft = true;
+  clearTimerInterval();
+
+  todayRecords.splice(0, todayRecords.length, ...(draft.records || []));
+  workoutStartedAt = draft.workoutStartedAt || null;
+
+  Object.entries(tagConfigs).forEach(([field, config]) => {
+    const value = draft.tagValues && Object.prototype.hasOwnProperty.call(draft.tagValues, field)
+      ? draft.tagValues[field]
+      : cloneDefaultValue(config);
+    tagValues[field] = Array.isArray(value) ? [...value] : value;
+    updateTagGroup(field);
+  });
+
+  const form = draft.form || {};
+  dom.workoutDate.value = form.workoutDate || getTodayDateString();
+  dom.dailyNote.value = form.dailyNote || "";
+  dom.prePainNote.value = form.prePainNote || "";
+  if (form.exerciseSelect) dom.exerciseSelect.value = form.exerciseSelect;
+  dom.exerciseManual.value = form.exerciseManual || "";
+  dom.plannedSets.value = form.plannedSets || "4";
+  dom.defaultRest.value = form.defaultRest || getDefaultRestSeconds();
+  dom.weightInput.value = form.weightInput || "";
+  dom.repsInput.value = form.repsInput || "";
+  dom.setNote.value = form.setNote || "";
+  dom.setPainNote.value = form.setPainNote || "";
+  dom.nextTrainingNote.value = form.nextTrainingNote || "";
+
+  Object.entries(form.otherInputs || {}).forEach(([field, value]) => {
+    const input = document.querySelector(`[data-other-for="${field}"]`);
+    if (input) input.value = value || "";
+  });
+  updateOtherInputs();
+
+  const restoredTimer = getRestoredTimerState(draft.timer);
+  timerState.remaining = restoredTimer.remaining;
+  timerState.running = false;
+  updateTimerDisplay();
+  setTimerMessage(restoredTimer.message || "草稿已恢复");
+
+  activeExerciseName = getCurrentExerciseName();
+  renumberSets();
+  renderRecords();
+  updateSummary();
+  updateCurrentSetLabel();
+  updateRestContext();
+  updateSetPainWarning();
+
+  isApplyingDraft = false;
+
+  if (restoredTimer.shouldResume) {
+    startRestTimer(restoredTimer.remaining);
+  }
+}
+
+function getRestoredTimerState(timer) {
+  if (!timer) {
+    return {
+      remaining: getDefaultRestSeconds(),
+      message: "草稿已恢复",
+      shouldResume: false
+    };
+  }
+
+  let remaining = Number(timer.remaining) || 0;
+  if (timer.running && timer.savedAt) {
+    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(timer.savedAt).getTime()) / 1000));
+    remaining = Math.max(0, remaining - elapsed);
+  }
+
+  return {
+    remaining,
+    message: remaining > 0 ? timer.message || "休息中" : "休息结束，可以开始下一组",
+    shouldResume: Boolean(timer.running && remaining > 0)
+  };
+}
+
+function scheduleDraftSave() {
+  if (isApplyingDraft || draftRestorePending || pendingDelete) return;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraft, DRAFT_SAVE_DELAY);
+}
+
+function saveDraft() {
+  if (isApplyingDraft || draftRestorePending || pendingDelete) return;
+
+  const draft = buildDraft();
+  if (!hasDraftContent(draft)) {
+    removeDraft();
+    return;
+  }
+
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function buildDraft() {
+  const otherInputs = {};
+  document.querySelectorAll("[data-other-for]").forEach((input) => {
+    otherInputs[input.dataset.otherFor] = input.value.trim();
+  });
+
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    workoutStartedAt,
+    tagValues: structuredCloneSafe(tagValues),
+    records: todayRecords.map((record) => ({ ...record, pain: { ...(record.pain || {}) } })),
+    form: {
+      workoutDate: dom.workoutDate.value,
+      dailyNote: dom.dailyNote.value,
+      prePainNote: dom.prePainNote.value,
+      exerciseSelect: dom.exerciseSelect.value,
+      exerciseManual: dom.exerciseManual.value,
+      plannedSets: dom.plannedSets.value,
+      defaultRest: dom.defaultRest.value,
+      weightInput: dom.weightInput.value,
+      repsInput: dom.repsInput.value,
+      setNote: dom.setNote.value,
+      setPainNote: dom.setPainNote.value,
+      nextTrainingNote: dom.nextTrainingNote.value,
+      otherInputs
+    },
+    timer: {
+      remaining: timerState.remaining,
+      running: timerState.running,
+      message: dom.timerMessage.textContent,
+      savedAt: new Date().toISOString()
+    }
+  };
+}
+
+function hasDraftContent(draft) {
+  if (!draft) return false;
+  const form = draft.form || {};
+  return Boolean(
+    draft.workoutStartedAt ||
+    (draft.records && draft.records.length > 0) ||
+    form.weightInput ||
+    form.repsInput ||
+    form.setNote ||
+    form.setPainNote ||
+    form.dailyNote ||
+    form.prePainNote ||
+    form.nextTrainingNote ||
+    form.exerciseManual ||
+    form.exerciseSelect !== "杠铃卧推" ||
+    form.plannedSets !== "4" ||
+    hasNonDefaultTagValues(draft.tagValues || {})
+  );
+}
+
+function hasNonDefaultTagValues(values) {
+  return Object.entries(tagConfigs).some(([field, config]) => {
+    const current = values[field];
+    const defaultValue = cloneDefaultValue(config);
+    return JSON.stringify(current ?? defaultValue) !== JSON.stringify(defaultValue);
+  });
+}
+
+function loadDraft() {
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function removeDraft() {
+  localStorage.removeItem(DRAFT_KEY);
 }
 
 function generateAiText() {
@@ -1207,7 +1599,7 @@ function collectPainSignals(workout) {
 function getPainSummary(pain) {
   if (!pain) return "";
   const level = Number(pain.level || 0);
-  const hasPain = pain.timing !== "无" || level > 0 || normalizeArray(pain.parts).length > 0 || normalizeArray(pain.nature).length > 0;
+  const hasPain = pain.timing !== "无" || level > 0 || hasMeaningfulValues(pain.parts) || hasMeaningfulValues(pain.nature);
   if (!hasPain) return "";
 
   const parts = formatList(pain.parts, "未记录部位");
@@ -1295,6 +1687,15 @@ function normalizeArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (typeof value === "string" && value) return [value];
   return [];
+}
+
+function hasMeaningfulValues(value) {
+  const neutralValues = ["无", "正常", "一般", "睡眠一般", "饮食正常", "水分正常"];
+  return normalizeArray(value).some((item) => !neutralValues.includes(item));
+}
+
+function structuredCloneSafe(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function formatList(value, fallback = "无") {

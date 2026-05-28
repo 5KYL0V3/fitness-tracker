@@ -13,6 +13,24 @@
       <h1>健身训练记录器</h1>
     </header>
 
+    <section id="draftRestore" class="draft-restore hidden" aria-live="polite">
+      <div>
+        <strong>检测到未完成训练</strong>
+        <p id="draftSummary">可继续上次训练草稿</p>
+      </div>
+      <div class="draft-actions">
+        <button id="continueDraftBtn" class="primary" type="button">继续训练</button>
+        <button id="discardDraftBtn" class="secondary" type="button">放弃草稿</button>
+      </div>
+    </section>
+
+    <nav class="quick-jump" aria-label="快速跳转">
+      <a href="#set-section">🔥 当前组</a>
+      <a href="#timer-section">⏱ 休息</a>
+      <a href="#records-section">📋 记录</a>
+      <a href="#summary-section">📊 总结</a>
+    </nav>
+
     <section class="card" aria-labelledby="today-title">
       <h2 id="today-title">📝 一、今日训练信息</h2>
       <div class="form-grid">
@@ -212,7 +230,7 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="set-title">
+    <section id="set-section" class="card" aria-labelledby="set-title">
       <div class="section-head">
         <h2 id="set-title">🔥 三、当前组记录</h2>
         <span id="currentSetLabel" class="pill">第 1 / 4 组</span>
@@ -320,7 +338,7 @@
       </div>
     </section>
 
-    <section class="card timer-card" aria-labelledby="timer-title">
+    <section id="timer-section" class="card timer-card" aria-labelledby="timer-title">
       <h2 id="timer-title">⏱️ 四、休息计时器</h2>
       <p id="restContext" class="rest-context">当前动作：杠铃卧推 · 下一组：第 1 组</p>
       <div id="timerDisplay" class="timer-display">02:00</div>
@@ -335,12 +353,12 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="records-title">
+    <section id="records-section" class="card" aria-labelledby="records-title">
       <h2 id="records-title">📋 五、已完成记录</h2>
       <div id="recordsList" class="records-list empty">还没有完成的组</div>
     </section>
 
-    <section class="card" aria-labelledby="summary-title">
+    <section id="summary-section" class="card" aria-labelledby="summary-title">
       <h2 id="summary-title">📊 六、今日总结</h2>
       <dl class="summary-grid">
         <div>
@@ -432,6 +450,11 @@
       <textarea id="aiOutput" rows="18" readonly placeholder="点击生成后，这里会出现可复制的训练报告"></textarea>
       <p id="copyStatus" class="status-text"></p>
     </section>
+
+    <div id="undoToast" class="undo-toast hidden" aria-live="polite">
+      <span id="undoMessage"></span>
+      <button id="undoDeleteBtn" type="button">撤回</button>
+    </div>
   </main>
 
   <script src="script.js"></script>
