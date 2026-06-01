@@ -185,6 +185,11 @@ h2 {
   letter-spacing: 0;
 }
 
+h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
 .card {
   margin: 14px 0;
   padding: 16px;
@@ -227,6 +232,13 @@ fieldset {
 
 .section-head h2 {
   margin-bottom: 0;
+}
+
+.subsection-title {
+  margin: 14px 0 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .pill {
@@ -328,6 +340,42 @@ fieldset {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 16px;
+}
+
+.wide-action {
+  grid-column: 1 / -1;
+}
+
+.quick-adjust-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-adjust-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.quick-adjust-group span {
+  min-width: 34px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.quick-adjust-group button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #f9fafb;
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.template-actions {
+  margin-top: 0;
 }
 
 .timer-card {
@@ -589,6 +637,10 @@ fieldset {
   color: var(--danger);
 }
 
+.exercise-source-muted {
+  opacity: 0.56;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -639,6 +691,10 @@ fieldset {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+#historySearch {
+  margin-bottom: 12px;
 }
 
 .history-detail {
