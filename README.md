@@ -113,10 +113,8 @@ RIR：2
 
 ## 在线预览
 
-如果项目已经部署到 Netlify、Vercel 或 GitHub Pages，可以在这里填写：
-
 ```text
-在线访问地址：待填写
+https://zhang-fitness-tracker.netlify.app/
 ```
 
 ## 维护者
